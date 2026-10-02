@@ -13,10 +13,11 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v6
+      - name: 检出代码
+        uses: actions/checkout@v4
 
       - name: ⚙ 设置 Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
@@ -24,7 +25,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb x11-utils xdotool scrot fonts-noto-cjk jq wget
-          pip install seleniumbase requests
+          pip install --no-cache-dir seleniumbase requests
           seleniumbase install chromedriver
 
       - name: ⚙ 设置代理 (sing-box)
@@ -59,12 +60,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          runs=$(gh run list --workflow="${{ github.workflow }}" --limit=100 --json databaseId --jq '.[].databaseId')
-          count=0
+          # 获取除了当前运行记录之外的所有历史 run_id
+          runs=$(gh run list --workflow="${{ github.workflow }}" --limit 100 --json databaseId --jq ".[] | select(.databaseId != ${{ github.run_id }}) | .databaseId")
           for run_id in $runs; do
-            count=$((count + 1))
-            if [ $count -gt 1 ]; then
-              echo "删除运行记录: $run_id"
-              gh run delete $run_id || true
-            fi
+            echo "正在删除运行记录: $run_id"
+            gh run delete "$run_id" || true
           done
